@@ -17,9 +17,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: frontendUrl,
     credentials: true,
   })
 );
@@ -36,7 +38,11 @@ app.get('/api/health', async (_req, res) => {
       dbTime: result.rows[0].fecha_servidor,
     });
   } catch (error: any) {
-    res.status(500).json({ ok: false, error: 'Error conectando a la base de datos', detalle: error.message });
+    res.status(500).json({
+      ok: false,
+      error: 'Error conectando a la base de datos',
+      detalle: error.message,
+    });
   }
 });
 
@@ -49,12 +55,17 @@ app.use('/api/metas', metasRoutes);
 app.use('/api/ahorros', ahorrosRoutes);
 app.use('/api/jornada', jornadaRoutes);
 
-initDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`✅ Backend completo corriendo en http://localhost:${PORT}`);
+// Solo levanta el puerto cuando corre en local (Vercel lo maneja en modo Serverless)
+if (!process.env.VERCEL) {
+  initDB()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`✅ Backend completo corriendo en http://localhost:${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error('❌ Error inicializando tablas en TiDB Cloud:', err);
     });
-  })
-  .catch((err) => {
-    console.error('❌ Error inicializando tablas en TiDB Cloud:', err);
-  });
+}
+
+export default app;
